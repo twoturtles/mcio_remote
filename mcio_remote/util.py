@@ -61,6 +61,7 @@ def logging_init(
     logging.basicConfig(level=level, format=fmt, datefmt=datefmt)
 
 
+# For LatestItemQueue
 T = TypeVar("T")
 
 
@@ -232,33 +233,6 @@ class InstallProgress:
         if self.pbar:
             self.pbar.update(current - self.current)
             self.current = current
-
-
-class DegreesToPixels:
-    """Convert a change in degrees of pitch and yaw to absolute pixels.
-    This class allows an environment to use degrees of change of pitch and yaw and converts them into
-    the equivalent absolute pixels for input into Minecraft.
-
-    Minecraft takes in cursor position in terms of pixel coordinates and
-    translates that into degrees of change in the viewpoint. When the mouse
-    sensitivity is set to the default (0.5), the conversion is simply 1 pixel per 0.15
-    degrees. This class is using that constant scaling factor.
-
-    See Mouse.updateMouse() and Entity.changeLookDirection() in Minecraft (yarn mappings) for details.
-    """
-
-    DEGREES_PER_PIXEL = 0.15
-    PIXELS_PER_DEGREE = 1 / DEGREES_PER_PIXEL
-
-    def __init__(self) -> None:
-        self.x: int = 0
-        self.y: int = 0
-
-    def update(self, *, yaw_delta: float, pitch_delta: float) -> tuple[int, int]:
-        """Delta arguments are in degrees. Returns the new cursor position in pixels."""
-        self.x += int(yaw_delta * self.PIXELS_PER_DEGREE)
-        self.y += int(pitch_delta * self.PIXELS_PER_DEGREE)
-        return self.x, self.y
 
 
 ##

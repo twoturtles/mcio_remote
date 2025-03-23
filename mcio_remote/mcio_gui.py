@@ -9,7 +9,7 @@ from typing import Any
 
 import glfw  # type: ignore
 
-from . import controller, gui, instance, network, util
+from . import controller, gui, instance, network, types, util
 
 LOG = logging.getLogger(__name__)
 
@@ -53,7 +53,8 @@ class MCioGUI:
             return
 
         # Pass everything else to Minecraft
-        action_pkt = network.ActionPacket(keys=[(key, action)])
+        input = types.InputEvent.from_ints(types.InputType.KEY, key, action)
+        action_pkt = network.ActionPacket(inputs=[input])
         self.controller.send_action(action_pkt)
 
     def cursor_position_callback(self, window: Any, xpos: float, ypos: float) -> None:
@@ -71,7 +72,8 @@ class MCioGUI:
         self, window: Any, button: int, action: int, mods: int
     ) -> None:
         """Handle mouse button events"""
-        action_pkt = network.ActionPacket(mouse_buttons=[(button, action)])
+        input = types.InputEvent.from_ints(types.InputType.MOUSE, button, action)
+        action_pkt = network.ActionPacket(inputs=[input])
         self.controller.send_action(action_pkt)
 
     def show(self, observation: network.ObservationPacket) -> None:

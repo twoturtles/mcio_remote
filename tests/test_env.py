@@ -94,24 +94,38 @@ def test_env_with_commands(
 def test_action_to_packet(
     default_mcio_env: mcio_env.MCioEnv, action_space_sample1: mcio_env.MCioAction
 ) -> None:
+    inputs = [
+        types.InputEvent.from_ints(*ev)
+        # type, code, action
+        for ev in [
+            (0, 32, 1),
+            (0, 69, 1),
+            (0, 83, 1),
+            (0, 87, 1),
+            (0, 340, 1),
+            (1, 0, 1),
+        ]
+    ]
     expected1 = network.ActionPacket(
         version=network.MCIO_PROTOCOL_VERSION,
         sequence=0,
         commands=[],
         stop=False,
-        keys=[(32, 1), (69, 1), (83, 1), (87, 1), (340, 1)],
-        mouse_buttons=[(0, 1)],
+        inputs=inputs,
         cursor_pos=[(827, 22)],
     )
     pkt = default_mcio_env._action_to_packet(action_space_sample1)
+
+    # Sort to ensure reproducible order
+    expected1.inputs.sort()
+    pkt.inputs.sort()
     assert pkt == expected1
 
     expected2 = network.ActionPacket(
         version=network.MCIO_PROTOCOL_VERSION,
         sequence=0,
         commands=[],
-        keys=[],
-        mouse_buttons=[],
+        inputs=[],
         cursor_pos=[(827, 22)],
     )
     # Passing the same action. Keys and mouse_buttons should be cleared since they're already set.

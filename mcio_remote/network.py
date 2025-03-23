@@ -18,14 +18,7 @@ from . import types, util
 
 LOG = logging.getLogger(__name__)
 
-MCIO_PROTOCOL_VERSION: Final[int] = 3
-
-
-@dataclass
-class InventorySlot:
-    slot: int
-    id: str
-    count: int
+MCIO_PROTOCOL_VERSION: Final[int] = 4
 
 
 # Observation packets received from MCio
@@ -54,9 +47,9 @@ class ObservationPacket:
     player_pos: tuple[float, float, float] = field(default=(0.0, 0.0, 0.0))
     player_pitch: float = 0
     player_yaw: float = 0
-    inventory_main: list[InventorySlot] = field(default_factory=list)
-    inventory_armor: list[InventorySlot] = field(default_factory=list)
-    inventory_offhand: list[InventorySlot] = field(default_factory=list)
+    inventory_main: list[types.InventorySlot] = field(default_factory=list)
+    inventory_armor: list[types.InventorySlot] = field(default_factory=list)
+    inventory_offhand: list[types.InventorySlot] = field(default_factory=list)
 
     @classmethod
     def unpack(cls, data: bytes) -> Union["ObservationPacket", None]:
@@ -154,16 +147,9 @@ class ActionPacket:
 
     ## Action ##
 
-    # List of (key, action) pairs.
-    # E.g., (glfw.KEY_W, glfw.PRESS) or (glfw.KEY_LEFT_SHIFT, glfw.RELEASE)
-    # I don't think there's any reason to use glfw.REPEAT
-    keys: list[tuple[int, int]] = field(default_factory=list)
-
-    # List of (button, action) pairs.
-    # E.g., (glfw.MOUSE_BUTTON_1, glfw.PRESS) or (glfw.MOUSE_BUTTON_1, glfw.RELEASE)
-    mouse_buttons: list[tuple[int, int]] = field(
-        default_factory=list
-    )  # List of (button, action) pairs
+    # Key / mouse button input
+    # Each input entry contains the type (key/mouse button), glfw code and action (press/release)
+    inputs: list[types.InputEvent] = field(default_factory=list)
 
     # List of (x, y) pairs. Using a list for consistency
     cursor_pos: list[tuple[int, int]] = field(default_factory=list)

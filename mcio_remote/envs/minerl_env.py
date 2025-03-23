@@ -2,8 +2,6 @@
 This provides an environment compatible with the minerl 1.0 action and observation spaces.
 """
 
-import enum
-from dataclasses import dataclass
 from typing import Any
 
 import glfw  # type: ignore
@@ -11,7 +9,9 @@ import numpy as np
 from gymnasium import spaces
 
 import mcio_remote as mcio
+from mcio_remote.types import InputID, InputType
 
+from . import env_util
 from .base_env import McioBaseEnv
 
 """
@@ -70,42 +70,30 @@ type MinerlAction = dict[str, Any]
 type MinerlObservation = dict[str, Any]
 
 
-# Define types for key/button actions
-class InputType(enum.Enum):
-    KEY = 0
-    MOUSE = 1
-
-
-@dataclass()
-class Input:
-    type: InputType
-    code: int  # GLFW key/button code
-
-
 # Map from Minerl action name to Minecraft input
-INPUT_MAP: dict[str, Input] = {
-    "attack": Input(InputType.MOUSE, glfw.MOUSE_BUTTON_LEFT),
-    "use": Input(InputType.MOUSE, glfw.MOUSE_BUTTON_RIGHT),
-    "pickItem": Input(InputType.MOUSE, glfw.MOUSE_BUTTON_MIDDLE),
-    "forward": Input(InputType.KEY, glfw.KEY_W),
-    "left": Input(InputType.KEY, glfw.KEY_A),
-    "right": Input(InputType.KEY, glfw.KEY_D),
-    "back": Input(InputType.KEY, glfw.KEY_S),
-    "drop": Input(InputType.KEY, glfw.KEY_Q),
-    "inventory": Input(InputType.KEY, glfw.KEY_E),
-    "jump": Input(InputType.KEY, glfw.KEY_SPACE),
-    "sneak": Input(InputType.KEY, glfw.KEY_LEFT_SHIFT),
-    "sprint": Input(InputType.KEY, glfw.KEY_LEFT_CONTROL),
-    "swapHands": Input(InputType.KEY, glfw.KEY_F),
-    "hotbar.1": Input(InputType.KEY, glfw.KEY_1),
-    "hotbar.2": Input(InputType.KEY, glfw.KEY_2),
-    "hotbar.3": Input(InputType.KEY, glfw.KEY_3),
-    "hotbar.4": Input(InputType.KEY, glfw.KEY_4),
-    "hotbar.5": Input(InputType.KEY, glfw.KEY_5),
-    "hotbar.6": Input(InputType.KEY, glfw.KEY_6),
-    "hotbar.7": Input(InputType.KEY, glfw.KEY_7),
-    "hotbar.8": Input(InputType.KEY, glfw.KEY_8),
-    "hotbar.9": Input(InputType.KEY, glfw.KEY_9),
+INPUT_MAP: dict[str, InputID] = {
+    "attack": InputID(InputType.MOUSE, glfw.MOUSE_BUTTON_LEFT),
+    "use": InputID(InputType.MOUSE, glfw.MOUSE_BUTTON_RIGHT),
+    "pickItem": InputID(InputType.MOUSE, glfw.MOUSE_BUTTON_MIDDLE),
+    "forward": InputID(InputType.KEY, glfw.KEY_W),
+    "left": InputID(InputType.KEY, glfw.KEY_A),
+    "right": InputID(InputType.KEY, glfw.KEY_D),
+    "back": InputID(InputType.KEY, glfw.KEY_S),
+    "drop": InputID(InputType.KEY, glfw.KEY_Q),
+    "inventory": InputID(InputType.KEY, glfw.KEY_E),
+    "jump": InputID(InputType.KEY, glfw.KEY_SPACE),
+    "sneak": InputID(InputType.KEY, glfw.KEY_LEFT_SHIFT),
+    "sprint": InputID(InputType.KEY, glfw.KEY_LEFT_CONTROL),
+    "swapHands": InputID(InputType.KEY, glfw.KEY_F),
+    "hotbar.1": InputID(InputType.KEY, glfw.KEY_1),
+    "hotbar.2": InputID(InputType.KEY, glfw.KEY_2),
+    "hotbar.3": InputID(InputType.KEY, glfw.KEY_3),
+    "hotbar.4": InputID(InputType.KEY, glfw.KEY_4),
+    "hotbar.5": InputID(InputType.KEY, glfw.KEY_5),
+    "hotbar.6": InputID(InputType.KEY, glfw.KEY_6),
+    "hotbar.7": InputID(InputType.KEY, glfw.KEY_7),
+    "hotbar.8": InputID(InputType.KEY, glfw.KEY_8),
+    "hotbar.9": InputID(InputType.KEY, glfw.KEY_9),
 }
 
 
@@ -148,7 +136,9 @@ class MinerlEnv(McioBaseEnv[MinerlObservation, MinerlAction]):
         _action_space["camera"] = spaces.Box(low=-180.0, high=180.0, shape=(2,))
         self.action_space = spaces.Dict(_action_space)
 
-        self.cursor_map = mcio.util.DegreesToPixels()
+        # Env helpers
+        self.input_mgr = env_util.InputStateManager()
+        self.cursor_map = env_util.DegreesToPixels()
 
     def _process_step(
         self, action: MinerlAction, observation: MinerlObservation
@@ -172,18 +162,7 @@ class MinerlEnv(McioBaseEnv[MinerlObservation, MinerlAction]):
         Always populate the packet with all possible keys/buttons. Minecraft can
         handle repeated PRESS and RELEASE actions. Not set in the action = RELEASE."""
         packet = mcio.network.ActionPacket()
-        for action_name, input in INPUT_MAP.items():
-            # These are Discrete(2), so either np.int64(0) or np.int64(1)
-            space_val = action.get(action_name)
-            input_val = glfw.PRESS if space_val else glfw.RELEASE
-            match input.type:
-                case InputType.KEY:
-                    packet.keys.append((input.code, input_val))
-                case InputType.MOUSE:
-                    packet.mouse_buttons.append((input.code, input_val))
-                case _:
-                    raise ValueError(f"Unknown input type: {input.type}")
-
+        packet.inputs = self.input_mgr.process_action(action, INPUT_MAP)
         packet.cursor_pos = [
             self.cursor_map.update(
                 pitch_delta=action["camera"][0], yaw_delta=action["camera"][1]

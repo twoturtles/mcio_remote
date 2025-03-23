@@ -9,8 +9,7 @@ import numpy as np
 from gymnasium import spaces
 from numpy.typing import NDArray
 
-from mcio_remote import controller, gui, instance, network
-from mcio_remote.types import RunOptions
+from mcio_remote import controller, gui, instance, network, types
 
 ##
 # Defines used in creating spaces
@@ -62,7 +61,7 @@ class MCioEnv(gym.Env[MCioObservation, MCioAction]):
 
     def __init__(
         self,
-        run_options: RunOptions,
+        run_options: types.RunOptions,
         *,
         launch: bool = False,
         cursor_rel_bound: int = CURSOR_REL_BOUND_DEFAULT,
@@ -206,20 +205,29 @@ class MCioEnv(gym.Env[MCioObservation, MCioAction]):
         packet.commands = commands
 
         # Convert action_space key indices to Minecraft (key, action) pairs
+        input_list: list[types.InputEvent] = []
         if "keys" in action:
-            packet.keys = self._space_map_to_packet(
+            keys_list = self._space_map_to_packet(
                 action["keys"], MINECRAFT_KEYS, self.keys_pressed
             )
-            packet.keys.sort()
+            input_list += [
+                types.InputEvent.from_ints(types.InputType.KEY, x[0], x[1])
+                for x in keys_list
+            ]
 
         # Convert action_space mouse button indices to Minecraft (button, action) pairs
         if "mouse_buttons" in action:
-            packet.mouse_buttons = self._space_map_to_packet(
+            buttons_list = self._space_map_to_packet(
                 action["mouse_buttons"],
                 MINECRAFT_MOUSE_BUTTONS,
                 self.mouse_buttons_pressed,
             )
-            packet.mouse_buttons.sort()
+            input_list += [
+                types.InputEvent.from_ints(types.InputType.MOUSE, x[0], x[1])
+                for x in buttons_list
+            ]
+
+        packet.inputs = input_list
 
         # Convert cursor position
         if "cursor_pos_rel" in action:
@@ -241,7 +249,8 @@ class MCioEnv(gym.Env[MCioObservation, MCioAction]):
         pressed_set: set[str],
     ) -> list[tuple[int, int]]:
         """Map keys and buttons in the action space to Minecraft press/release
-        Also updates self.keys_pressed and self.mouse_buttons_pressed"""
+        Also updates self.keys_pressed and self.mouse_buttons_pressed
+        Returns list of [glfw_code, glfw_action]"""
         pairs = []
         for name, action in space_dict.items():
             pressed = bool(action)  # 1 = pressed, 0 = not pressed

@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
+import glfw  # type: ignore
+
 from . import config
 
 # Project defines
@@ -28,10 +30,74 @@ class StrEnumUpper(enum.StrEnum):
         return name
 
 
+##
+# Protocol types
+
+
 class FrameType(StrEnumUpper):
     """Observation frame type. Currently just RAW."""
 
     RAW = enum.auto()
+
+
+@dataclass
+class InventorySlot:
+    """Minecraft inventory slot - slot number, item id, and count"""
+
+    slot: int
+    id: str
+    count: int
+
+
+##
+# Define types for key/button actions
+# XXX Five types for storing 3 ints might be a bit much
+
+
+class InputType(enum.IntEnum):
+    KEY = 0
+    MOUSE = 1
+
+
+# GLFW key/button code, e.g. glfw.KEY_LEFT_SHIFT or glfw.MOUSE_BUTTON_LEFT
+type GlfwCode = int
+
+
+class GlfwAction(enum.IntEnum):
+    RELEASE = glfw.RELEASE
+    PRESS = glfw.PRESS
+    # Note, not using glfw.REPEAT
+
+
+@dataclass(frozen=True)  # Hashable
+class InputID:
+    type: InputType
+    code: GlfwCode
+
+    @classmethod
+    def from_ints(cls, type_int: int, code: int) -> "InputID":
+        return cls(type=InputType(type_int), code=code)
+
+
+@dataclass(order=True)
+class InputEvent:
+    """Full input event sent to Minecraft"""
+
+    type: InputType  # key / mouse
+    code: GlfwCode  # glfw code
+    action: GlfwAction  # press / release
+
+    @classmethod
+    def from_ints(cls, type_int: int, code: int, action_int: int) -> "InputEvent":
+        """Alternate constructor that converts from int types to the enums."""
+        return cls(type=InputType(type_int), code=code, action=GlfwAction(action_int))
+
+    @classmethod
+    def from_id(cls, input_id: InputID, action: GlfwAction) -> "InputEvent":
+        return cls(type=input_id.type, code=input_id.code, action=action)
+
+
+##
 
 
 class MCioMode(StrEnumUpper):
