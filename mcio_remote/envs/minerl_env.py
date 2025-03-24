@@ -2,6 +2,7 @@
 This provides an environment compatible with the minerl 1.0 action and observation spaces.
 """
 
+from dataclasses import dataclass
 from typing import Any
 
 import glfw  # type: ignore
@@ -12,7 +13,7 @@ import mcio_remote as mcio
 from mcio_remote.types import InputID, InputType
 
 from . import env_util
-from .base_env import McioBaseEnv
+from .base_env import McioBaseEnv, McioBaseEnvArgs
 
 """
 Notes:
@@ -97,19 +98,23 @@ INPUT_MAP: dict[str, InputID] = {
 }
 
 
+@dataclass
+class MinerlEnvArgs(McioBaseEnvArgs):
+    """See McioBaseEnvArgs for more info"""
+
+    pass
+
+
 class MinerlEnv(McioBaseEnv[MinerlObservation, MinerlAction]):
     metadata = {
         "render_modes": ["human", "rgb_array"],
     }
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, args: MinerlEnvArgs) -> None:
         """
-        Attempt at Minerl 1.0 compatible environment. This only replicates the Minerl
-        action and observation spaces.
-
-        See **McioBaseEnv** for docs on parameters
+        Attempt at Minerl 1.0 compatible environment. Replicates the Minerl action and observation spaces.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(args)
 
         # Used for the ESC action
         self.terminated = False

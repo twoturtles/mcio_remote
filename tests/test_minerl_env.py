@@ -21,7 +21,8 @@ def minerl_sample() -> Any:
 @pytest.fixture
 def default_minerl_env() -> minerl_env.MinerlEnv:
     """Match the default minerl env"""
-    return minerl_env.MinerlEnv(types.RunOptions(width=640, height=360))
+    args = minerl_env.MinerlEnvArgs(types.RunOptions(width=640, height=360))
+    return minerl_env.MinerlEnv(args)
 
 
 def test_minerl_is_valid(

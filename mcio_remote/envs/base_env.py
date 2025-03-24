@@ -1,6 +1,7 @@
 """Base class for MCio environments"""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any, Generic, TypedDict, TypeVar
 
 import gymnasium as gym
@@ -22,39 +23,47 @@ class ResetOptions(TypedDict, total=False):
     commands: list[str]  # List of Minecraft commands
 
 
+@dataclass
+class McioBaseEnvArgs:
+    """
+    Wrap base class args in a class so child classes don't have to repeat them
+    Args:
+        run_options: Configuration options for MCio
+        launch: Whether to launch a new Minecraft instance
+        render_mode: The rendering mode (human, rgb_array)
+    """
+
+    run_options: RunOptions
+    launch: bool = False
+    render_mode: str | None = None
+
+
 class McioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
     """Base class for MCio environments"""
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
-        "render_fps": 60,
     }
 
     def __init__(
         self,
-        run_options: RunOptions,
-        *,
-        launch: bool = False,
-        render_mode: str | None = None,
+        args: McioBaseEnvArgs,
     ):
         """Base constructor for MCio environments
-        Sub-classes should call this and set up their action_space and observation_space.
-
-        Args:
-            run_options: Configuration options for MCio
-            launch: Whether to launch a new Minecraft instance
-            render_mode: The rendering mode (human, rgb_array)
 
         Notes for subclasses:
          - Make sure you call super().__init__().
          - Set self.action_space and self.observation_space in the constructor.
-         - Define _packet_to_observation() and _action_to_packet()
+         - Define _packet_to_observation(), _action_to_packet() and _process_step()
          - Optionally define _get_info()
         """
-        self.run_options = run_options
-        self.launch = launch
-        assert render_mode is None or render_mode in self.metadata["render_modes"]
-        self.render_mode = render_mode
+        self.run_options = args.run_options
+        self.launch = args.launch
+        assert (
+            args.render_mode is None
+            or args.render_mode in self.metadata["render_modes"]
+        )
+        self.render_mode = args.render_mode
 
         # Common state tracking
         self.last_frame: NDArray[np.uint8] | None = None
@@ -83,15 +92,13 @@ class McioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         """Implemented in subclasses. Convert from the environment action_space to an ActionPacket"""
         pass
 
+    @abstractmethod
     def _process_step(
         self, action: ActType, observation: ObsType
     ) -> tuple[int, bool, bool]:
-        """Override in the subclass. Called during step() after the observation has been received
+        """Implemented in subclasses. Called during step() after the observation has been received
         Returns (reward, terminated, truncated)"""
-        reward = 0
-        terminated = False
-        truncated = False
-        return reward, terminated, truncated
+        pass
 
     def _get_info(self) -> dict[Any, Any]:
         """Optionally override this in subclasses. Used to return extra info from reset() and step()"""
