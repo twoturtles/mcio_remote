@@ -24,21 +24,25 @@ class ResetOptions(TypedDict, total=False):
 
 
 @dataclass
-class McioBaseEnvArgs:
+class MCioBaseEnvArgs:
     """
     Wrap base class args in a class so child classes don't have to repeat them
     Args:
         run_options: Configuration options for MCio
         launch: Whether to launch a new Minecraft instance
         render_mode: The rendering mode (human, rgb_array)
+        verify_actions: Ensure actions are within the action_space
+        verify_observations: Ensure observations are within the observation_space
     """
 
     run_options: RunOptions
     launch: bool = False
     render_mode: str | None = None
+    verify_actions: bool = False
+    verify_observation: bool = False
 
 
-class McioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
+class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
     """Base class for MCio environments"""
 
     metadata = {
@@ -47,7 +51,7 @@ class McioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
 
     def __init__(
         self,
-        args: McioBaseEnvArgs,
+        args: MCioBaseEnvArgs,
     ):
         """Base constructor for MCio environments
 
@@ -64,6 +68,8 @@ class McioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
             or args.render_mode in self.metadata["render_modes"]
         )
         self.render_mode = args.render_mode
+        self.verify_actions = args.verify_actions
+        self.verify_observations = args.verify_observation
 
         # Common state tracking
         self.last_frame: NDArray[np.uint8] | None = None
@@ -112,13 +118,16 @@ class McioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         Sets self.last_frame to the most received frame."""
         assert self.ctrl is not None
         packet = self.ctrl.recv_observation()
-        if packet is None:
-            return {}
         self.last_frame = packet.get_frame_with_cursor()
-        return self._packet_to_observation(packet)
+        obs = self._packet_to_observation(packet)
+        if self.verify_observations:
+            assert obs in self.observation_space
+        return obs
 
     def _send_action(self, action: ActType, commands: list[str] | None = None) -> None:
         packet = self._action_to_packet(action, commands)
+        if self.verify_actions:
+            assert action in self.action_space
         assert self.ctrl is not None
         self.ctrl.send_action(packet)
 
@@ -178,13 +187,12 @@ class McioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         options: ResetOptions | None = None,
     ) -> tuple[ObsType, int, bool, bool, dict[Any, Any]]:
         """Env step function. Includes extra options arg to allow command to be sent during step."""
-        if action not in self.action_space:
-            raise ValueError(f"Invalid action: {action}")
         options = options or ResetOptions()
 
         self._send_action(action, options.get("commands"))
 
         observation = self._get_obs()
+
         reward, terminated, truncated = self._process_step(action, observation)
         info = self._get_info()
 
