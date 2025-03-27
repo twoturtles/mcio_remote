@@ -1,4 +1,7 @@
-from typing import Any
+from typing import Any, Sequence
+
+import numpy as np
+from numpy.typing import NDArray
 
 from mcio_remote.types import GlfwAction, InputEvent, InputID
 
@@ -80,3 +83,11 @@ class InputStateManager:
                 released_set.add(input_id)
 
         return self.update(pressed_set, released_set)
+
+
+def nf32(seq: Sequence[int | float] | int | float) -> NDArray[np.float32]:
+    """Convert sequences or single values to np.float32 arrays. Turns single values into 1D arrays."""
+    if isinstance(seq, (int, float)):
+        seq = [float(seq)]
+    arr = np.array([float(val) for val in seq], dtype=np.float32)
+    return arr

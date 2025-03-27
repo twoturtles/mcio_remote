@@ -13,7 +13,7 @@ import mcio_remote as mcio
 from mcio_remote.types import InputID, InputType
 
 from . import env_util
-from .base_env import McioBaseEnv, McioBaseEnvArgs
+from .base_env import MCioBaseEnv, MCioBaseEnvArgs
 
 # Stub in the action and observation space types
 type MinerlAction = dict[str, Any]
@@ -48,13 +48,13 @@ INPUT_MAP: dict[str, InputID] = {
 
 
 @dataclass
-class MinerlEnvArgs(McioBaseEnvArgs):
-    """See McioBaseEnvArgs for more info"""
+class MinerlEnvArgs(MCioBaseEnvArgs):
+    """See MCioBaseEnvArgs for more info"""
 
     pass
 
 
-class MinerlEnv(McioBaseEnv[MinerlObservation, MinerlAction]):
+class MinerlEnv(MCioBaseEnv[MinerlObservation, MinerlAction]):
     metadata = {
         "render_modes": ["human", "rgb_array"],
     }
@@ -107,14 +107,14 @@ class MinerlEnv(McioBaseEnv[MinerlObservation, MinerlAction]):
         obs: MinerlObservation = {
             "pov": packet.get_frame_with_cursor(),
         }
+        assert obs in self.observation_space
         return obs
 
     def _action_to_packet(
         self, action: MinerlAction, commands: list[str] | None = None
     ) -> mcio.network.ActionPacket:
-        """Convert from the environment action_space to an ActionPacket
-        Always populate the packet with all possible keys/buttons. Minecraft can
-        handle repeated PRESS and RELEASE actions. Not set in the action = RELEASE."""
+        """Convert from the environment action_space to an ActionPacket"""
+        assert action in self.action_space
         packet = mcio.network.ActionPacket()
         packet.inputs = self.input_mgr.process_action(action, INPUT_MAP)
         packet.cursor_pos = [

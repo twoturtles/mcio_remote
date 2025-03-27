@@ -6,7 +6,7 @@ import pprint
 import sys
 
 import mcio_remote as mcio
-from mcio_remote.envs import mcio_env
+from mcio_remote.envs import mcio_env2 as mcio_env
 
 # import gymnasium as gym
 
@@ -23,7 +23,8 @@ def tutorial(steps: int, instance_name: str | None, world_name: str | None) -> N
     launch = True if instance_name is not None else False
     # gym.make() works, but I prefer just creating the env instance directly.
     # env = gym.make("mcio_env/MCioEnv-v0", render_mode="human", run_options=opts, launch=launch)
-    env = mcio_env.MCioEnv(opts, launch=launch, render_mode="human")
+    args = mcio_env.MCioEnvArgs(opts, launch=launch, render_mode="human")
+    env = mcio_env.MCioEnv(args)
 
     if steps == 0:
         steps = sys.maxsize  # Go forever
@@ -45,18 +46,18 @@ def tutorial(steps: int, instance_name: str | None, world_name: str | None) -> N
         # Cycle jumping on and off
         cycle = (steps // 50) % 2
         if cycle == 0:
-            action["keys"]["SPACE"] = mcio_env.PRESS
+            action["SPACE"] = mcio_env.PRESS
         elif cycle == 1:
-            action["keys"]["SPACE"] = mcio_env.NO_PRESS
+            action["SPACE"] = mcio_env.NO_PRESS
 
         # Limit some actions
-        action["cursor_pos_rel"] = action["cursor_pos_rel"].clip(-20, 20)
-        action["keys"]["E"] = mcio_env.NO_PRESS
-        action["keys"]["S"] = mcio_env.NO_PRESS
+        action["cursor_delta"] = action["cursor_delta"].clip(-20, 20)
+        action["E"] = mcio_env.NO_PRESS
+        action["S"] = mcio_env.NO_PRESS
 
         # Go forward and press attack button
-        action["keys"]["W"] = mcio_env.PRESS
-        action["mouse_buttons"]["LEFT"] = mcio_env.PRESS
+        action["W"] = mcio_env.PRESS
+        action["BUTTON_LEFT"] = mcio_env.PRESS
         observation, reward, terminated, truncated, info = env.step(action)
         print_step(step, action, observation)
         step += 1
