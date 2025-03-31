@@ -1,7 +1,6 @@
 """Base class for MCio environments"""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any, Generic, TypedDict, TypeVar
 
 import gymnasium as gym
@@ -23,56 +22,37 @@ class ResetOptions(TypedDict, total=False):
     commands: list[str]  # List of Minecraft commands
 
 
-@dataclass
-class MCioBaseEnvArgs:
-    """
-    Wrap base class args in a class so child classes don't have to repeat them
-    Args:
-        run_options: Configuration options for MCio
-        launch: Whether to launch a new Minecraft instance
-        render_mode: The rendering mode (human, rgb_array)
-        verify_actions: Ensure actions are within the action_space
-        verify_observations: Ensure observations are within the observation_space
-    """
-
-    run_options: RunOptions
-    launch: bool = False
-    render_mode: str | None = None
-    verify_actions: bool = False
-    verify_observation: bool = False
-
-
 class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
-    """Base class for MCio environments"""
+    """Base class for MCio environments
+    Notes for subclasses:
+        - Make sure you call super().__init__().
+        - Set self.action_space and self.observation_space in the constructor.
+        - Define _packet_to_observation(), _action_to_packet() and _process_step()
+        - Optionally define _get_info()
+
+    Along with the callbacks, self.last_frame and self.last_cursor_pos are available for subclasses.
+    """
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
     }
 
-    def __init__(
-        self,
-        args: MCioBaseEnvArgs,
-    ):
+    def __init__(self, run_options: RunOptions, render_mode: str | None = None) -> None:
         """Base constructor for MCio environments
+        Args:
+            run_options: Configuration options for MCio. If instance_name is set, a Minecraft
+                instance will be started, otherwise the environment will connect to a previously launched instance.
+                See mcio_remote.types.RunOptions
+            render_mode: The rendering mode (human, rgb_array)
 
-        Notes for subclasses:
-         - Make sure you call super().__init__().
-         - Set self.action_space and self.observation_space in the constructor.
-         - Define _packet_to_observation(), _action_to_packet() and _process_step()
-         - Optionally define _get_info()
         """
-        self.run_options = args.run_options
-        self.launch = args.launch
-        assert (
-            args.render_mode is None
-            or args.render_mode in self.metadata["render_modes"]
-        )
-        self.render_mode = args.render_mode
-        self.verify_actions = args.verify_actions
-        self.verify_observations = args.verify_observation
+        self.run_options = run_options
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
 
         # Common state tracking
         self.last_frame: NDArray[np.uint8] | None = None
+        self.last_cursor_pos: tuple[int, int] = (0, 0)
 
         # These need closing when done. Handled in close().
         self.gui: gui.ImageStreamGui | None = None
@@ -115,19 +95,22 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
 
     def _get_obs(self) -> ObsType:
         """Receive an observation and pass it to the subclass.
-        Sets self.last_frame to the most received frame."""
+        Updates self.last_frame self.last_cursor_pos"""
         assert self.ctrl is not None
         packet = self.ctrl.recv_observation()
+
         self.last_frame = packet.get_frame_with_cursor()
+        self.last_cursor_pos = packet.cursor_pos
+
+        # Call to subclass
         obs = self._packet_to_observation(packet)
-        if self.verify_observations:
-            assert obs in self.observation_space
+        # assert obs in self.observation_space
         return obs
 
     def _send_action(self, action: ActType, commands: list[str] | None = None) -> None:
+        # Call to subclass
         packet = self._action_to_packet(action, commands)
-        if self.verify_actions:
-            assert action in self.action_space
+        # assert action in self.action_space
         assert self.ctrl is not None
         self.ctrl.send_action(packet)
 
@@ -149,14 +132,12 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         commands: list[str] | None = None
             List of server commands to initialize the environment.
             E.g. teleport, time set, etc. Do not include the initial "/" in the commands.
-        launcher_options: instance:LauncherOptions | None = None
-            Minecraft launch options. Will skip launch if None.
         """
         # We need the following line to seed self.np_random
         super().reset(seed=seed)
         options = options or ResetOptions()
 
-        if self.launch:
+        if self.run_options.instance_name is not None:
             if self.launcher is not None:
                 # For multiple resets, close the previous connections, etc.
                 self.close()

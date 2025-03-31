@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+import glfw  # type: ignore
 import numpy as np
 import pytest
 
@@ -13,12 +14,18 @@ def default_mcio_env() -> mcio_env.MCioEnv:
 
 
 @pytest.fixture
-def action_space_sample1() -> mcio_env.MCioAction:
-    return {
-        "cursor_pos_rel": np.array([827.648, 22.274418], dtype=np.float32),
-        "keys": {"A": 0, "D": 0, "E": 1, "L_SHIFT": 1, "S": 1, "SPACE": 1, "W": 1},
-        "mouse_buttons": {"LEFT": 1, "RIGHT": 0},
-    }
+def action_space_sample1(default_mcio_env: mcio_env.MCioEnv) -> mcio_env.MCioAction:
+    act = default_mcio_env.get_noop_action()
+    act.update(
+        {
+            "cursor_delta": np.array([827, 22], dtype=np.int32),
+            "A": 1,
+            "W": 0,
+            "LEFT_SHIFT": 1,
+            "LEFT_BUTTON": 1,
+        }
+    )
+    return act
 
 
 @pytest.fixture
@@ -45,23 +52,17 @@ def test_action_fixture_is_valid(
 def test_env_smoke(
     mock_controller: dict[str, MagicMock], action_space_sample1: mcio_env.MCioAction
 ) -> None:
-    env = mcio_env.MCioEnv(
-        types.RunOptions(mcio_mode=types.MCioMode.SYNC), launch=False
-    )
+    env = mcio_env.MCioEnv(types.RunOptions(mcio_mode=types.MCioMode.SYNC))
     obs, info = env.reset()
     assert isinstance(obs, dict)  # mcio_env.MCioObservation
     assert "frame" in obs
     env.step(action_space_sample1)
-    with pytest.raises(ValueError):
-        env.step({"Invalid Action": "will fail"})
 
 
 def test_step_assert(
     mock_controller: dict[str, MagicMock], action_space_sample1: mcio_env.MCioAction
 ) -> None:
-    env = mcio_env.MCioEnv(
-        types.RunOptions(mcio_mode=types.MCioMode.SYNC), launch=False
-    )
+    env = mcio_env.MCioEnv(types.RunOptions(mcio_mode=types.MCioMode.SYNC))
     with pytest.raises(AssertionError):
         env.step(action_space_sample1)  # No controller because reset hasn't been called
 
@@ -70,9 +71,7 @@ def test_env_with_commands(
     mock_controller: dict[str, MagicMock], action_space_sample1: mcio_env.MCioAction
 ) -> None:
     mock_ctrl_class: MagicMock = mock_controller["ctrl_sync"]
-    env = mcio_env.MCioEnv(
-        types.RunOptions(mcio_mode=types.MCioMode.SYNC), launch=False
-    )
+    env = mcio_env.MCioEnv(types.RunOptions(mcio_mode=types.MCioMode.SYNC))
     cmds = ["command one", "command two"]
 
     def _check_send_action(send_action_mock: MagicMock) -> None:
@@ -95,17 +94,17 @@ def test_action_to_packet(
     default_mcio_env: mcio_env.MCioEnv, action_space_sample1: mcio_env.MCioAction
 ) -> None:
     inputs = [
-        types.InputEvent.from_ints(*ev)
-        # type, code, action
-        for ev in [
-            (0, 32, 1),
-            (0, 69, 1),
-            (0, 83, 1),
-            (0, 87, 1),
-            (0, 340, 1),
-            (1, 0, 1),
-        ]
+        types.InputEvent(types.InputType.KEY, glfw.KEY_A, types.GlfwAction.PRESS),
+        # W won't be in the intial action b/c keys start out released
+        # types.InputEvent(types.InputType.KEY, glfw.KEY_W, types.GlfwAction.RELEASE),
+        types.InputEvent(
+            types.InputType.KEY, glfw.KEY_LEFT_SHIFT, types.GlfwAction.PRESS
+        ),
+        types.InputEvent(
+            types.InputType.MOUSE, glfw.MOUSE_BUTTON_LEFT, types.GlfwAction.PRESS
+        ),
     ]
+
     expected1 = network.ActionPacket(
         version=network.MCIO_PROTOCOL_VERSION,
         sequence=0,
@@ -128,6 +127,6 @@ def test_action_to_packet(
         inputs=[],
         cursor_pos=[(827, 22)],
     )
-    # Passing the same action. Keys and mouse_buttons should be cleared since they're already set.
+    # Passing the same action. Keys and mouse_buttons should not be in the action since they're already set.
     pkt = default_mcio_env._action_to_packet(action_space_sample1)
     assert pkt == expected2

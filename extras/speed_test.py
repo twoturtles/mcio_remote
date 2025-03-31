@@ -32,19 +32,17 @@ def mcio_setup(render: bool, connect: bool) -> Any:
     import mcio_remote as mcio
     from mcio_remote.envs import mcio_env
 
-    # mcio inst launch DemoInstance -m sync -w DemoWorld -W 640 -H 360
-    # env = mcio_env.MCioEnv(render_mode=None, width=640, height=360)
-    opts = mcio.types.RunOptions(
-        instance_name="DemoInstance",
-        world_name="DemoWorld",
-        width=640,
-        height=360,
-        mcio_mode=mcio.types.MCioMode.SYNC,
-        hide_window=True,
-    )
+    if connect:
+        # To launch an instance:
+        #  mcio inst launch DemoInstance -m sync -w DemoWorld -W 640 -H 360
+        opts = mcio.types.RunOptions.for_connect(width=640, height=360)
+    else:
+        opts = mcio.types.RunOptions.for_launch(
+            "DemoInstance", "DemoWorld", width=640, height=360
+        )
+
     render_mode = "human" if render else None
-    launch = not connect
-    env = mcio_env.MCioEnv(opts, launch=launch, render_mode=render_mode)
+    env = mcio_env.MCioEnv(opts, render_mode=render_mode)
     env.reset()
     return env
 

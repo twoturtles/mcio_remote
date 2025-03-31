@@ -4,7 +4,7 @@ import enum
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final
+from typing import Final, Self
 
 import glfw  # type: ignore
 
@@ -116,12 +116,13 @@ class RunOptions:
     """Options for running Minecraft
 
     Args:
-        instance_name: Required if launching
-        world_name: Launch directly into a world
+        instance_name: Set to launch an instance. None if connecting to a running instance.
+        world_name: Launch directly into a world. You probably want to set this if instance_name is set.
+            Otherwise you'll launch to the main menu.
         width: Frame width
         height: Frame height
         mcio_mode: sync/async
-        hide_window: Don't show Minecraft window
+        hide_window: Don't show the Minecraft app window
         action_port: port for action connection
         observation_port: port for observation connection
         mcio_dir: Top-level data directory
@@ -129,7 +130,7 @@ class RunOptions:
         mc_username: Minecraft username
     """
 
-    instance_name: config.InstanceName | None = None  # Required if launching
+    instance_name: config.InstanceName | None = None
     world_name: config.WorldName | None = None
 
     width: int = DEFAULT_WINDOW_WIDTH
@@ -157,3 +158,44 @@ class RunOptions:
             self.instance_dir = im.get_instance_dir(self.instance_name)
         else:
             self.instance_dir = None
+
+    ##
+    # Some simplified constructors for common cases
+
+    @classmethod
+    def for_launch(
+        cls,
+        instance_name: config.InstanceName,
+        world_name: config.WorldName,
+        width: int = DEFAULT_WINDOW_WIDTH,
+        height: int = DEFAULT_WINDOW_HEIGHT,
+    ) -> Self:
+        """Simplified constructor for launching a Minecraft instance for an environment.
+        This just creates the properly configured RunOptions. Launch using an env (or instance.Launcher).
+        """
+
+        return cls(
+            instance_name=instance_name,
+            world_name=world_name,
+            width=width,
+            height=height,
+            mcio_mode=MCioMode.SYNC,
+            hide_window=True,
+        )
+
+    @classmethod
+    def for_connect(
+        cls,
+        width: int = DEFAULT_WINDOW_WIDTH,
+        height: int = DEFAULT_WINDOW_HEIGHT,
+    ) -> Self:
+        """Simplified constructor for connecting to an already running Minecraft instance
+        This just creates the properly configured RunOptions. Connect using an env
+        """
+
+        return cls(
+            width=width,
+            height=height,
+            mcio_mode=MCioMode.SYNC,
+            hide_window=True,
+        )

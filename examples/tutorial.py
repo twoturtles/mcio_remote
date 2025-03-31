@@ -6,25 +6,22 @@ import pprint
 import sys
 
 import mcio_remote as mcio
-from mcio_remote.envs import mcio_env2 as mcio_env
+from mcio_remote.envs import mcio_env
 
 # import gymnasium as gym
 
 
 def tutorial(steps: int, instance_name: str | None, world_name: str | None) -> None:
-    opts = mcio.types.RunOptions(
-        instance_name=instance_name,
-        world_name=world_name,
-        hide_window=True,
-        mcio_mode=mcio.types.MCioMode.SYNC,
-        width=640,
-        height=480,
-    )
-    launch = True if instance_name is not None else False
+    if instance_name is not None:
+        if world_name is None:
+            raise ValueError("World name must be provided if instance name is provided")
+        opts = mcio.types.RunOptions.for_launch(instance_name, world_name)
+    else:
+        opts = mcio.types.RunOptions.for_connect()
+
     # gym.make() works, but I prefer just creating the env instance directly.
-    # env = gym.make("mcio_env/MCioEnv-v0", render_mode="human", run_options=opts, launch=launch)
-    args = mcio_env.MCioEnvArgs(opts, launch=launch, render_mode="human")
-    env = mcio_env.MCioEnv(args)
+    # env = gym.make("mcio_env/MCioEnv-v0", render_mode="human", run_options=opts)
+    env = mcio_env.MCioEnv(opts)
 
     if steps == 0:
         steps = sys.maxsize  # Go forever
