@@ -35,6 +35,7 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
+        "render_fps": 60,
     }
 
     def __init__(self, run_options: RunOptions, render_mode: str | None = None) -> None:

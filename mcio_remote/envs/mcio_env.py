@@ -55,9 +55,6 @@ CURSOR_DELTA_ZERO.flags.writeable = False
 
 
 class MCioEnv(MCioBaseEnv[MCioObservation, MCioAction]):
-    metadata = {
-        "render_modes": ["human", "rgb_array"],
-    }
     # The maximum change measured in pixels
     max_cursor_delta = 180.0 / env_util.DegreesToPixels.DEGREES_PER_PIXEL  # 1200
 

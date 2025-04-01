@@ -9,6 +9,11 @@ __all__ = [
 ]
 
 register(
-    id="mcio_env/MCioEnv-v0",
-    entry_point="mcio_remote.envs:MCioEnv",
+    id="MCio/MCioEnv-v0",
+    entry_point="mcio_remote.envs.mcio_env:MCioEnv",
+)
+
+register(
+    id="MCio/MinerlEnv-v0",
+    entry_point="mcio_remote.envs.minerl_env:MinerlEnv",
 )

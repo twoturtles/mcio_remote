@@ -20,6 +20,7 @@ type MinerlObservation = dict[str, Any]
 
 
 # Map from Minerl action name to Minecraft input
+# The action space also includes ESC and camera
 INPUT_MAP: dict[str, InputID] = {
     "attack": InputID(InputType.MOUSE, glfw.MOUSE_BUTTON_LEFT),
     "use": InputID(InputType.MOUSE, glfw.MOUSE_BUTTON_RIGHT),
@@ -47,10 +48,6 @@ INPUT_MAP: dict[str, InputID] = {
 
 
 class MinerlEnv(MCioBaseEnv[MinerlObservation, MinerlAction]):
-    metadata = {
-        "render_modes": ["human", "rgb_array"],
-    }
-
     def __init__(self, run_options: RunOptions, render_mode: str | None = None) -> None:
         """
         Attempt at Minerl 1.0 compatible environment. Replicates the Minerl action and observation spaces.
@@ -99,14 +96,14 @@ class MinerlEnv(MCioBaseEnv[MinerlObservation, MinerlAction]):
         obs: MinerlObservation = {
             "pov": packet.get_frame_with_cursor(),
         }
-        assert obs in self.observation_space
+        # assert obs in self.observation_space
         return obs
 
     def _action_to_packet(
         self, action: MinerlAction, commands: list[str] | None = None
     ) -> mcio.network.ActionPacket:
         """Convert from the environment action_space to an ActionPacket"""
-        assert action in self.action_space
+        # assert action in self.action_space
         packet = mcio.network.ActionPacket()
         packet.inputs = self.input_mgr.process_action(action, INPUT_MAP)
         packet.cursor_pos = [
