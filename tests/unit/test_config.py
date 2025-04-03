@@ -13,9 +13,8 @@ def temp_config_file(tmp_path: Path) -> Generator[Path, None, None]:
     yield config_dir
 
 
-def test_config_basic() -> None:
-    mcio_dir = Path(__file__).parent / "fixtures"
-    with config.ConfigManager(mcio_dir=mcio_dir) as cm:
+def test_config_basic(fixtures_dir: Path) -> None:
+    with config.ConfigManager(mcio_dir=fixtures_dir) as cm:
         cfg = cm.config
         assert "Inst1" in cfg.instances
         assert "Inst2" in cfg.instances
@@ -43,9 +42,8 @@ def test_config_from_dict() -> None:
     assert cfg.instances["test_instance"].minecraft_version == "1.21.3"
 
 
-def test_config_manager_save_load(temp_config_file: Path) -> None:
-    mcio_dir = Path(__file__).parent / "fixtures"
-    with config.ConfigManager(mcio_dir=mcio_dir) as cm:
+def test_config_manager_save_load(fixtures_dir: Path, temp_config_file: Path) -> None:
+    with config.ConfigManager(mcio_dir=fixtures_dir) as cm:
         cfg = cm.config
     with config.ConfigManager(temp_config_file, save=True) as cm:
         cm.config = cfg

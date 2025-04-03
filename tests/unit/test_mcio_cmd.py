@@ -23,8 +23,7 @@ def test_config(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def test_mcio_dir(tmp_path: Path) -> Path:
-    fixtures_dir = Path(__file__).parent / "fixtures"
+def test_mcio_dir(fixtures_dir: Path, tmp_path: Path) -> Path:
     shutil.copytree(fixtures_dir / "test_mcio_dir", tmp_path, dirs_exist_ok=True)
     return tmp_path
 

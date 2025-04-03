@@ -8,8 +8,9 @@ import requests
 from mcio_remote import util
 
 
-def test_mojang_version_functions(monkeypatch: pytest.MonkeyPatch) -> None:
-    fixtures_dir = Path(__file__).parent / "fixtures"
+def test_mojang_version_functions(
+    fixtures_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     with open(fixtures_dir / "version_manifest_v2.json") as f:
         mock_manifest = json.load(f)
     with open(fixtures_dir / "1.21.3.json") as f:

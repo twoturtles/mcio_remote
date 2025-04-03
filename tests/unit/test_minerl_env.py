@@ -9,10 +9,9 @@ from mcio_remote.envs import minerl_env
 
 
 @pytest.fixture
-def minerl_sample() -> Any:
+def minerl_sample(fixtures_dir: Path) -> Any:
     """The pkl contains a dict with an action and an observation from Minerl 1.0.
     The frame size is 640x360."""
-    fixtures_dir = Path(__file__).parent / "fixtures"
     with open(fixtures_dir / "minerl_sample.pkl", "rb") as f:
         sample = pickle.load(f)
     return sample
