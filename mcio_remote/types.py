@@ -123,6 +123,7 @@ class RunOptions:
         height: Frame height
         mcio_mode: sync/async
         hide_window: Don't show the Minecraft app window
+        cleanup_on_signal: Kill the launched Minecraft and exit on SIGINT or SIGTERM
         action_port: port for action connection
         observation_port: port for observation connection
         mcio_dir: Top-level data directory
@@ -137,6 +138,7 @@ class RunOptions:
     height: int = DEFAULT_WINDOW_HEIGHT
     mcio_mode: MCioMode = DEFAULT_MCIO_MODE
     hide_window: bool = DEFAULT_HIDE_WINDOW
+    cleanup_on_signal: bool = True
 
     action_port: int = DEFAULT_ACTION_PORT
     observation_port: int = DEFAULT_OBSERVATION_PORT

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 Debug logging config for Minecraft. Pass through mcio_remote using the MCIO_LOG_CFG env var.
-E.g., MCIO_LOG_CFG=log4j2.xml
+E.g., MCIO_LOG_CFG=log4j2.xml mcio inst launch DemoInstance -w DemoWorld
 -->
 <Configuration name="Dev">
   <Appenders>
@@ -20,7 +20,7 @@ E.g., MCIO_LOG_CFG=log4j2.xml
     </Logger>
 
     <!-- Example for a specific class -->
-    <Logger name="net.twoturtles.MCioSyncUtil" level="debug" additivity="false">
+    <Logger name="net.twoturtles.MCioActionHandler" level="debug" additivity="false">
       <AppenderRef ref="SysOut" />
     </Logger>
 

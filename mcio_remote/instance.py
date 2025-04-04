@@ -2,8 +2,12 @@
 
 import logging
 import os
+import signal
 import subprocess
+import sys
+import time
 from pathlib import Path
+from types import FrameType
 from typing import Any, Final
 
 import minecraft_launcher_lib as mll
@@ -175,6 +179,12 @@ class Launcher:
         self.mll_opts = mll_opts
 
         self._process: subprocess.Popen[str] | None = None
+        self._in_wait: bool = False
+        if self.run_options.cleanup_on_signal:
+            # Note, python only allows signal handlers on the main thread. So if you're
+            # running this on another thread, set cleanup_on_signal to False.
+            signal.signal(signal.SIGINT, self._signal_handler)
+            signal.signal(signal.SIGTERM, self._signal_handler)
 
     def launch(self, wait: bool = False) -> None:
         """launch the instance
@@ -189,17 +199,42 @@ class Launcher:
             cmd, env=env, cwd=self.run_options.instance_dir, text=True
         )
         if wait:
+            LOG.info(f"Wait-on-pid {self._process.pid}")
+            self._in_wait = True
             self._process.wait()
+            self._in_wait = False
             self._process = None
 
+    def _close_wait(self) -> None:
+        LOG.info("Close-Wait")
+        assert self._process is not None
+        self._process.terminate()
+        try:
+            self._process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            self._process.kill()
+            self._process.wait()
+
+    def _close_no_wait(self) -> None:
+        LOG.info("Close-No-Wait")
+        assert self._process is not None
+        self._process.terminate()
+        # Give it a second to exit, then kill.
+        # Could improve this with psutil to see if the process is a zombie.
+        time.sleep(1)
+        self._process.kill()
+
     def close(self) -> None:
-        if self._process is not None:
-            try:
-                self._process.terminate()
-                self._process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self._process.kill()
-                self._process.wait()
+        if self._process is None:
+            return
+        LOG.info(f"Closing-Subprocess pid={self._process.pid}")
+        if self._in_wait:
+            # You can't call wait twice due to an internal lock. If we're
+            # already in wait in __init__(), don't try to wait here.
+            self._close_no_wait()
+        else:
+            self._close_wait()
+        LOG.info("Close-Complete")
         self._process = None
 
     def poll(self) -> int | None:
@@ -254,6 +289,13 @@ class Launcher:
         except IndexError:
             print(f"Unexpected end of list after option {option}")
             raise
+
+    def _signal_handler(self, signum: int, frame: FrameType | None) -> None:
+        """I want to be able to ctrl-c the python process that launched Minecraft and have Minecraft exit"""
+        signame = signal.Signals(signum).name
+        LOG.info(f"Received-Signal {signame} ({signum})")
+        self.close()
+        sys.exit(0)
 
 
 ##
