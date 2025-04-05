@@ -138,10 +138,10 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         super().reset(seed=seed)
         options = options or ResetOptions()
 
+        # For multiple resets, close any previous connections, etc.
+        self.close()
+
         if self.run_options.instance_name is not None:
-            if self.launcher is not None:
-                # For multiple resets, close the previous connections, etc.
-                self.close()
             self.launcher = instance.Launcher(self.run_options)
             self.launcher.launch(wait=False)
 
@@ -206,6 +206,7 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         self.gui.show(self.last_frame)
 
     def close(self) -> None:
+        """This supports multiple closes / resets"""
         if self.gui is not None:
             self.gui.close()
             self.gui = None

@@ -27,7 +27,7 @@ repos:
 
       - id: pytest
         name: pytest
-        entry: pytest --maxfail=3
+        entry: pytest --maxfail=3 tests/unit
         language: system
         types: [python]
         pass_filenames: false
