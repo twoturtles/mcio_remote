@@ -13,6 +13,7 @@ def setup() -> None:
 
     # Instead of the expected result, you get:
     # Look down ... day ... look up ... night
+    # Should be day, down, night, up
     env.reset()
     skipn(env, 20)
     print("Set day")

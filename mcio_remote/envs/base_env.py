@@ -3,12 +3,12 @@
 from abc import ABC, abstractmethod
 from typing import Any, Generic, TypedDict, TypeVar
 
+import glfw  # type: ignore
 import gymnasium as gym
 import numpy as np
 from numpy.typing import NDArray
 
-from mcio_remote import controller, gui, instance, network
-from mcio_remote.types import RunOptions
+from mcio_remote import controller, gui, instance, network, types
 
 # Reusable types
 RenderFrame = TypeVar("RenderFrame")  # NDArray[np] shape = (height, width, channels)
@@ -17,9 +17,19 @@ ActType = TypeVar("ActType", bound=dict[str, Any])
 
 
 class ResetOptions(TypedDict, total=False):
-    """For now just commands"""
+    """For now just commands
+    valid options:
+    commands: list[str]
+        List of server commands to initialize the environment.
+        E.g. teleport, time set, etc. Do not include the initial "/" in the commands.
 
-    commands: list[str]  # List of Minecraft commands
+        Note: Different command types seem to take different amounts of time to
+        execute in Minecraft. You may want to use skip_ticks() after commands to
+        make sure they have taken effect. I've seen ~20 ticks before a "time
+        set" command takes effect.
+    """
+
+    commands: list[str]
 
 
 class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
@@ -38,7 +48,9 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         "render_fps": 60,
     }
 
-    def __init__(self, run_options: RunOptions, render_mode: str | None = None) -> None:
+    def __init__(
+        self, run_options: types.RunOptions, render_mode: str | None = None
+    ) -> None:
         """Base constructor for MCio environments
         Args:
             run_options: Configuration options for MCio. If instance_name is set, a Minecraft
@@ -69,21 +81,21 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
 
     @abstractmethod
     def _packet_to_observation(self, packet: network.ObservationPacket) -> ObsType:
-        """Implemented in subclasses. Convert an ObservationPacket to the environment observation_space"""
+        """Convert an ObservationPacket to the environment observation_space"""
         pass
 
     @abstractmethod
     def _action_to_packet(
         self, action: ActType, commands: list[str] | None = None
     ) -> network.ActionPacket:
-        """Implemented in subclasses. Convert from the environment action_space to an ActionPacket"""
+        """Convert from the environment action_space to an ActionPacket"""
         pass
 
     @abstractmethod
     def _process_step(
         self, action: ActType, observation: ObsType
     ) -> tuple[int, bool, bool]:
-        """Implemented in subclasses. Called during step() after the observation has been received
+        """Called during step() after the observation has been received.
         Returns (reward, terminated, truncated)"""
         pass
 
@@ -129,11 +141,6 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         *,
         options: ResetOptions | None = None,  # type: ignore[override]
     ) -> tuple[ObsType, dict[Any, Any]]:
-        """valid options:
-        commands: list[str] | None = None
-            List of server commands to initialize the environment.
-            E.g. teleport, time set, etc. Do not include the initial "/" in the commands.
-        """
         # We need the following line to seed self.np_random
         super().reset(seed=seed)
         options = options or ResetOptions()
@@ -183,6 +190,19 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
 
         return observation, reward, terminated, truncated, info
 
+    def skip_ticks(
+        self, n_steps: int
+    ) -> tuple[ObsType, int, bool, bool, dict[Any, Any]]:
+        """Send empty actions and return the final observation. Use to skip over
+        a number of steps/game ticks"""
+        assert self.ctrl is not None
+        pkt = network.ActionPacket()
+        for i in range(n_steps):
+            self.ctrl.send_action(pkt)
+            observation = self._get_obs()
+        # observation, reward, terminated, truncated, info
+        return observation, 0, False, False, {}
+
     # NDArray[np.uint8] shape = (height, width, channels)
     # Gym's render returns a generic TypeVar("RenderFrame"), which is not very useful.
     def render(self) -> NDArray[np.uint8] | None:  # type: ignore[override]
@@ -219,3 +239,22 @@ class MCioBaseEnv(gym.Env[ObsType, ActType], Generic[ObsType, ActType], ABC):
         if self.launcher is not None:
             self.launcher.close()
             self.launcher = None
+
+    ##
+    # Debug helpers
+
+    def step_raw(self, pkt: network.ActionPacket) -> network.ObservationPacket:
+        """Expose sending raw actions"""
+        assert self.ctrl is not None
+        self.ctrl.send_action(pkt)
+        return self.ctrl.recv_observation()
+
+    def toggle_f3(self) -> None:
+        """Toggle the debug screen"""
+        pkt = network.ActionPacket()
+        f3 = types.InputID(types.InputType.KEY, glfw.KEY_F3)
+        pkt.inputs = [
+            types.InputEvent.from_id(f3, types.GlfwAction.PRESS),
+            types.InputEvent.from_id(f3, types.GlfwAction.RELEASE),
+        ]
+        self.step_raw(pkt)
